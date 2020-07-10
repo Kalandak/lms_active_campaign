@@ -1,0 +1,7 @@
+name: ac_sample
+description: Manages and responds to ac_sample events in the LMS.
+package: Custom
+type: module
+core: 8.x
+dependencies:
+  - key:key

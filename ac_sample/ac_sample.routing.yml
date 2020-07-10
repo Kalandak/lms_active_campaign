@@ -1,0 +1,7 @@
+ac_sample.debug:
+  path: '/ac_sample/debug'
+  defaults:
+    _title: 'ac_sample - Debug'
+    _controller: '\Drupal\ac_sample\Controller\Studentac_sampleController::debug'
+  requirements:
+    _permission: 'access content'

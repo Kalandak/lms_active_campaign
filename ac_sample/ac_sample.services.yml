@@ -1,0 +1,4 @@
+services:
+  ac_sample.student_ac_sample_controller:
+    class: '\Drupal\ac_sample\Controller\Studentac_sampleController'
+    arguments: ['@http_client', '@database', '@key.repository', '@entity_type.manager']

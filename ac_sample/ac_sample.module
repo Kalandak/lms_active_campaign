@@ -1,0 +1,225 @@
+<?php
+
+/**
+ * @file
+ * ac_sample module.
+ */
+
+/**
+ * Implements hook_entity_presave().
+ */
+function ac_sample_entity_presave(\Drupal\Core\Entity\EntityInterface $entity)
+{
+	 
+	  
+  /*=======Hit Flag when we click on the Button=====*/
+       //current user id
+      // $uid = \Drupal::currentUser()->id();
+	  $uid = \Drupal::currentUser()->id();
+       $flag_user = \Drupal::service('ac_sample.student_ac_sample_controller');
+       $count_flag=$flag_user->countFlagUser($uid);
+      /*=======Hit Flag when we click in Button=====*/
+	 
+	 
+      
+  switch ($entity->bundle()) {
+	  
+    case 'user':
+      // Get user entity.
+      $user_entity = $entity;
+      // TODO: Need to build switch/case for user role {
+      $ac_sampleController = \Drupal::service('ac_sample.student_ac_sample_controller');
+      // Get user email.
+      $user_mail = $user_entity->get('mail')->getString();
+      // Empty options array for controller request.
+	  //wii delete it
+	  
+	  //
+      $options = [];
+      // Add fields to array
+      // Email
+      $options['email'] = $user_mail;
+      // First name
+      if (!empty($user_entity->get('field_first_name')->get(0))) {
+        $options['first_name'] = $user_entity->get('field_first_name')->get(0)->getString();
+      } else {
+        $options['first_name'] = '';
+      }
+      // Last Name
+      if (!empty($user_entity->get('field_last_name')->get(0))) {
+        $options['last_name'] = $user_entity->get('field_last_name')->get(0)->getString();
+      } else {
+        $options['last_name'] = '';
+      }
+      // Topics and Goals Selected
+      if (
+        !empty($user_entity->get('field_user_topics')->target_id) &&
+        !empty($user_entity->get('field_user_time_goal')->get(0))
+      ) {
+        $options['field[%TOPICS_GOALS_SELECTED%,0]'] = 1;
+      } else {
+        $options['field[%TOPICS_GOALS_SELECTED%,0]'] = 0;
+      }
+      // Onboarded status 
+      if (!empty($user_entity->get('field_user_onboarded')->get(0))) {
+        $options['field[%ONBOARDED%,0]'] = $user_entity->get('field_user_onboarded')->get(0)->getString();
+      } else {
+        $options['field[%ONBOARDED%,0]'] = '0';
+      }
+     $user_object_ac= $ac_sampleController->syncContact($options);
+     $user_ac_id=$user_object_ac['subscriber_id'];
+     $user_entity->field_ac_contact_id->value=$user_ac_id;
+	 //if user account is created first time 
+				 if($entity->isNew())
+				 {
+					 //enroll user to automation Student: Enroll in a Course
+				   $enroll_options=[];
+				   $enroll_options['automation'] = 11;
+				   $enroll_options['contact_email']=$user_entity->get('mail')->getString();
+				   $ac_sampleController->studentEnroll($enroll_options);
+				 }
+				 else
+				 {
+					 // if user acount is not new account
+				   $uid  = $user_entity->get('uid')->getString();
+				   $flag_user = \Drupal::service('ac_sample.student_ac_sample_controller');
+				   $count_flag_user =$flag_user->countFlagUser($uid);
+                  // check if user enroll to any course if not enroll to automation Student: Enroll in a Course
+				 if($count_flag_user==0)
+				 {
+				  $enroll_options=[];
+				   $enroll_options['automation'] = 11;
+				   $enroll_options['contact_email']=$user_entity->get('mail')->getString();
+				   $ac_sampleController->studentEnroll($enroll_options);
+				   
+				  }
+					 
+					 
+				 }	
+				 
+      // TODO: } End user role todo
+      break;
+	  case 'session_progress':
+	  
+	       $ac_sampleController = \Drupal::service('ac_sample.student_ac_sample_controller');
+			// get user of session
+			$progress_session_user_id = $entity->get('field_user_ref')->target_id;
+			$progress_session_progress =  $entity->get('field_session_progress')->getString();
+
+			$user_session = \Drupal\user\Entity\User::load($progress_session_user_id);
+			$email_session = $user_session->get('mail')->value;
+
+			// if session complted more than 50% assign user to Student: Course ac_sample (First Session) automation
+			if($progress_session_progress > 0.5)
+			{
+			$enroll_options=[];
+			// $enroll_options['contact_id']=$user_ac_id;
+			$enroll_options['automation'] = 19;
+			$enroll_options['contact_email']=$email_session;
+			$rest= $ac_sampleController->studentEnroll($enroll_options);
+
+
+			}
+	  
+	  break;
+	  case 'course_progress':
+	  
+	  
+	  $ac_sampleController = \Drupal::service('ac_sample.student_ac_sample_controller');
+				$progress_course_user_id = $entity->get('field_user_ref')->target_id;
+				$user_course = \Drupal\user\Entity\User::load($progress_course_user_id);
+				$user_course_mail = $user_course->get('mail')->value;
+				$progress_course_progress =  $entity->get('field_course_progress')->getString();
+				$progress_course_complte  = $entity->get('field_course_completion')->value;
+				// if course complted more than 50% assign user to 18 Student: Course ac_sample (50% Completion)
+				if($progress_course_progress > 0.5)
+				{
+				$enroll_options=[];
+				$enroll_options['automation'] = 18;
+				$enroll_options['contact_email']=$user_course_mail;
+				$ac_sampleController->studentEnroll($enroll_options);
+
+				}
+											// check is course is completed 
+											if($progress_course_complte == 1)
+											{
+											// if course is completed assign user who has completed course to automation Student: Course ac_sample (Course Complete)
+											$enroll_options=[];
+											$enroll_options['automation'] = 12;
+											$enroll_options['contact_email']=$user_course_mail;
+											$ac_sampleController->studentEnroll($enroll_options);
+											//get user manager from user id from content group
+											$nids_group = \Drupal::entityTypeManager()
+											->getListBuilder('node')
+											->getStorage()
+											->loadByProperties([
+											'type' => 'group',
+											'status' => 1,
+											'field_group_users' =>$progress_course_user_id
+											]);
+
+											foreach ($nids_group as $group_id=>$group_value )
+											{
+											$group_manager_id =$group_value->field_group_manager->target_id;
+
+
+											}
+
+											//Enroll manager to automation Decision Maker: Additions
+
+											$user_manager_object = \Drupal\user\Entity\User::load($group_manager_id);
+											$user_manager_mail = $user_manager_object->get('mail')->value;
+											$enroll_options=[];
+											// $enroll_options['contact_id']=$user_ac_id;
+											$enroll_options['automation'] = 7;
+											$enroll_options['contact_email']=$user_manager_mail;
+											$ac_sampleController->studentEnroll($enroll_options);
+
+
+
+											}
+
+
+	  break;
+	  
+	   case 'group_license':
+	          
+	       	$group_storage = \Drupal::service('entity_type.manager')->getStorage('node');
+				// load current enetity
+				$group_entity= $group_storage->load($entity->parent_id->value);
+				// get manager id
+				$group_entity_manager = $group_entity->field_group_manager->target_id;
+				$group_manager_load = \Drupal\user\Entity\User::load($group_entity_manager);
+				$email_manager = $group_manager_load->get('mail')->value;
+				$group_seat= $group_entity->field_group_seats->value;
+				$ac_sampleController = \Drupal::service('ac_sample.student_ac_sample_controller');
+				// check if any seat avialable for manger to assign user
+				//if seat avaiable assign manger to Decision Maker: Invite Your Team automation
+				if($group_seat > 0)
+				{
+				$enroll_options=[];
+				$enroll_options['automation'] = 4;
+				$enroll_options['contact_email']=$email_manager;
+				$rest= $ac_sampleController->studentEnroll($enroll_options);
+				}
+				// if seat is not avialable remove manger from Decision Maker: Invite Your Team automation
+				if($group_seat == 0)
+				{
+
+				$enroll_options['automation'] = 4;
+				$enroll_options['contact_email']=$email_manager;
+				$rest= $ac_sampleController->RemoveContactAutomation($enroll_options);
+
+				}
+
+
+			
+	  
+	  break;
+	  
+  }
+}
+  
+
+
+
